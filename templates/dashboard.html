@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sensor Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+   <style>
+    body {
+        font-family: 'Segoe UI', Arial, sans-serif;
+        margin: 0;
+        background: #f4f6f9;
+        color: #333;
+    }
+
+    /* ===== HEADER ===== */
+    .header-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 20px 40px;
+        background: linear-gradient(135deg, #1f2937, #111827);
+        color: white;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    .header-container h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: 1px;
+    }
+
+    .logo {
+        height: 60px;
+    }
+
+    /* ===== STATUS ===== */
+    #deviceStatus {
+        font-size: 18px;
+        font-weight: 600;
+        margin: 20px 40px;
+    }
+
+    /* ===== BUTTON ===== */
+    button {
+        margin-left: 40px;
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #2563eb, #1e40af);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: 0.3s ease;
+        box-shadow: 0 4px 10px rgba(37,99,235,0.3);
+    }
+
+    button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37,99,235,0.5);
+    }
+
+    /* ===== TABLE ===== */
+    .data-table {
+        width: 95%;
+        margin: 20px auto;
+        border-collapse: collapse;
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+    }
+
+    .data-table th {
+        background: #1f2937;
+        color: white;
+        padding: 10px;
+        font-weight: 600;
+    }
+
+    .data-table td {
+        padding: 10px;
+        text-align: center;
+    }
+
+    /* ===== CHART GRID ===== */
+    .grid-container {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 20px;
+        padding: 30px 40px;
+    }
+
+    .chart-container {
+        background: white;
+        padding: 15px;
+        border-radius: 12px;
+        height: 300px;
+        box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        transition: 0.3s ease;
+    }
+
+    .chart-container:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+    }
+</style>
+</head>
+<body>
+
+<div class="header-container">
+    <h1>Sensor Dashboard</h1>
+    <img src="/static/logo .png" alt="Mahindra Logo" class="logo">
+</div>
+
+    <!-- Device Status -->
+    <h3 id="deviceStatus" style="color:green;">🟢 Device Connected</h3>
+    <h3 id="rtcTime" style="color:#555;">--</h3>
+
+    <!-- Button Instead of Link -->
+   <button onclick="window.location.href='/history_page'">
+    View Received Data Table
+</button>
+
+    <!-- LIVE SENSOR TABLE -->
+    <table class="data-table" id="liveDataTable">
+        <tr>
+            <th>Sensor 1</th><th>Sensor 2</th><th>Sensor 3</th><th>Sensor 4</th>
+            <th>Sensor 5</th><th>Sensor 6</th><th>Sensor 7</th><th>Sensor 8</th>
+            <th>Sensor 9</th><th>Sensor 10</th><th>Sensor 11</th><th>Sensor 12</th>
+            <th>Sensor 13</th><th>Sensor 14</th><th>Sensor 15</th><th>Sensor 16</th>
+        </tr>
+        <tr id="currentData">
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+            <td>-</td><td>-</td><td>-</td><td>-</td>
+        </tr>
+    </table>
+
+    <!-- HISTORY TABLE (Hidden Initially) -->
+    <div class="grid-container" id="chartsContainer"></div>
+
+<script>
+
+const charts = [];
+const maxDataPoints = 50;
+
+// Create charts
+function createCharts() {
+    const container = document.getElementById('chartsContainer');
+    for (let i = 0; i < 16; i++) {
+        const canvas = document.createElement('canvas');
+        const div = document.createElement('div');
+        div.className = 'chart-container';
+        div.appendChild(canvas);
+        container.appendChild(div);
+
+        const chart = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: `Sensor ${i + 1}`,
+                    data: [],
+                    borderColor: `hsl(${(i * 360 / 16)}, 70%, 50%)`,
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 0 }
+            }
+        });
+        charts.push(chart);
+    }
+}
+
+// Toggle history table
+function toggleHistory() {
+    const container = document.getElementById("historyContainer");
+    container.style.display = container.style.display === "none" ? "block" : "none";
+}
+
+// Update Live Dashboard
+function updateDashboard(data) {
+    const cells = document.getElementById('currentData').getElementsByTagName('td');
+    for (let i = 0; i < data.length; i++) {
+        cells[i].textContent = data[i].toFixed(2);
+    }
+
+    const timestamp = new Date().toLocaleTimeString();
+    for (let i = 0; i < charts.length; i++) {
+        charts[i].data.labels.push(timestamp);
+        charts[i].data.datasets[0].data.push(data[i]);
+
+        if (charts[i].data.labels.length > maxDataPoints) {
+            charts[i].data.labels.shift();
+            charts[i].data.datasets[0].data.shift();
+        }
+
+        charts[i].update();
+    }
+}
+
+// Load Latest Data
+setInterval(async () => {
+    try {
+        const response = await fetch('/latest');
+        const data = await response.json();
+
+        if (data.values && data.values.length === 16) {
+            updateDashboard(data.values);
+
+            // OPTIONAL: show RTC time on dashboard
+            if (data.timestamp) {
+                document.getElementById("rtcTime").textContent = data.timestamp;
+            }
+        }
+    } catch (error) {
+        console.log("Dashboard fetch error:", error);
+    }
+}, 300);
+
+
+
+// Device Status
+// Device Status (Correct Method)
+async function checkDeviceStatus() {
+    try {
+        const response = await fetch('/status');
+        const data = await response.json();
+
+        const status = document.getElementById("deviceStatus");
+
+        if (data.device === "connected") {
+            status.textContent = "🟢 Device Connected";
+            status.style.color = "#16a34a";
+        } else {
+            status.textContent = "🔴 Device Disconnected";
+            status.style.color = "#dc2626";
+        }
+
+    } catch (error) {
+        const status = document.getElementById("deviceStatus");
+        status.textContent = "🔴 Server Unreachable";
+        status.style.color = "#dc2626";
+    }
+
+    // Wait 2 seconds before next check
+    setTimeout(checkDeviceStatus, 2000);
+}
+
+// Start once
+checkDeviceStatus();
+
+createCharts();
+
+</script>
+
+</body>
+</html>
