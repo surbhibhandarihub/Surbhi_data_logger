@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Full Data History</title>
+
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            background: #f4f6f9;
+            color: #333;
+        }
+
+        .header-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: linear-gradient(135deg, #1f2937, #111827);
+            color: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+        .header-container h1 {
+            margin: 0;
+            font-size: 26px;
+        }
+
+        .logo {
+            height: 60px;
+        }
+
+        .filter-card {
+            background: white;
+            margin: 30px auto;
+            padding: 25px;
+            width: 95%;
+            border-radius: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        input {
+            padding: 8px;
+            margin-right: 15px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+        }
+
+        button {
+            padding: 10px 18px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 10px;
+        }
+
+        .primary-btn {
+            background: #2563eb;
+            color: white;
+        }
+
+        .secondary-btn {
+            background: #10b981;
+            color: white;
+        }
+
+        .danger-btn {
+            background: #ef4444;
+            color: white;
+        }
+
+        table {
+            width: 95%;
+            margin: 20px auto 40px auto;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+        }
+
+        th {
+            background: #1f2937;
+            color: white;
+            padding: 10px;
+        }
+
+        td {
+            padding: 8px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        tr:hover {
+            background: #f3f4f6;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="header-container">
+    <h1>Full Data History (Latest 50 Records)</h1>
+    <img src="/static/logo .png" alt="Mahindra Logo" class="logo">
+</div>
+
+<div class="filter-card">
+
+    <label>Start Time:</label>
+    <input type="datetime-local" id="startTime">
+
+    <label>End Time:</label>
+    <input type="datetime-local" id="endTime">
+
+    <br><br>
+
+    <button class="primary-btn" onclick="applyFilter()">Apply Filter</button>
+    <button class="secondary-btn" onclick="downloadData()">Download Selected Data</button>
+    <button class="danger-btn" onclick="window.location.href='/'">Back to Dashboard</button>
+
+</div>
+
+<table>
+    <thead>
+        <tr>
+            <th>Timestamp</th>
+            <th>Sensor 1</th><th>Sensor 2</th><th>Sensor 3</th><th>Sensor 4</th>
+            <th>Sensor 5</th><th>Sensor 6</th><th>Sensor 7</th><th>Sensor 8</th>
+            <th>Sensor 9</th><th>Sensor 10</th><th>Sensor 11</th><th>Sensor 12</th>
+            <th>Sensor 13</th><th>Sensor 14</th><th>Sensor 15</th><th>Sensor 16</th>
+        </tr>
+    </thead>
+    <tbody id="historyBody"></tbody>
+</table>
+
+<script>
+
+let autoRefresh;
+
+// Convert datetime-local to server format
+function formatDateTime(value) {
+    if (!value) return null;
+    return value.replace("T", " ") + ":00";
+}
+
+// Load history from backend
+async function loadHistory(start=null, end=null) {
+
+    let url = "/history";
+
+    if (start || end) {
+        url += "?";
+        if (start) url += "start=" + start;
+        if (start && end) url += "&";
+        if (end) url += "end=" + end;
+    }
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    const body = document.getElementById("historyBody");
+    body.innerHTML = "";
+
+    data.history.forEach(record => {
+
+        let row = "<tr>";
+        row += "<td>" + record.timestamp + "</td>";
+
+        record.values.forEach(value => {
+            row += "<td>" + parseFloat(value).toFixed(2) + "</td>";
+        });
+
+        row += "</tr>";
+        body.innerHTML += row;
+    });
+}
+
+// Apply filter
+function applyFilter() {
+
+    const start = formatDateTime(document.getElementById("startTime").value);
+    const end = formatDateTime(document.getElementById("endTime").value);
+
+    if (!start || !end) {
+        alert("Please select both start and end time");
+        return;
+    }
+
+    clearInterval(autoRefresh);  // stop live refresh
+    loadHistory(start, end);
+}
+
+// Download filtered data
+function downloadData() {
+
+    const start = formatDateTime(document.getElementById("startTime").value);
+    const end = formatDateTime(document.getElementById("endTime").value);
+
+    let url = "/download";
+
+    if (start || end) {
+        url += "?";
+        if (start) url += "start=" + start;
+        if (start && end) url += "&";
+        if (end) url += "end=" + end;
+    }
+
+    // Trigger download
+    window.open(url, "_blank");
+
+    // 🔥 After download → reset to latest view
+    setTimeout(() => {
+
+        document.getElementById("startTime").value = "";
+        document.getElementById("endTime").value = "";
+
+        loadHistory();  // load latest 50 records
+
+        autoRefresh = setInterval(() => {
+            loadHistory();
+        }, 2000);
+
+    }, 1000);
+}
+
+// Auto refresh (only when no filter applied)
+autoRefresh = setInterval(() => {
+
+    const start = document.getElementById("startTime").value;
+    const end = document.getElementById("endTime").value;
+
+    if (!start && !end) {
+        loadHistory();
+    }
+
+}, 2000);
+
+// Initial load
+loadHistory();
+
+</script>
+
+</body>
+</html>
